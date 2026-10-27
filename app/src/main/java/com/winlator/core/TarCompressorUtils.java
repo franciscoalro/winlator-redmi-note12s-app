@@ -155,12 +155,7 @@ public abstract class TarCompressorUtils {
                 TarArchiveEntry entry;
                 while ((entry = (TarArchiveEntry)tar.getNextEntry()) != null) {
                     if (!tar.canReadEntryData(entry)) continue;
-                    String entryName = entry.getName().replace('\\', '/');
-                    if (entryName.startsWith("/") || entryName.equals("..") || entryName.startsWith("../") || entryName.contains("/../")) {
-                        Log.w("TarCompressorUtils", "Skipping unsafe archive entry: " + entryName);
-                        continue;
-                    }
-                    File file = new File(destination, entryName);
+                    File file = new File(destination, entry.getName());
 
                     if (onExtractFileListener != null) {
                         file = onExtractFileListener.onExtractFile(file, entry.getSize());
@@ -168,11 +163,9 @@ public abstract class TarCompressorUtils {
                     }
 
                     if (entry.isDirectory()) {
-                        if (!file.isDirectory() && !file.mkdirs() && !file.isDirectory()) return false;
+                        if (!file.isDirectory()) file.mkdirs();
                     }
                     else {
-                        File parent = file.getParentFile();
-                        if (parent != null && !parent.isDirectory() && !parent.mkdirs() && !parent.isDirectory()) return false;
                         if (entry.isSymbolicLink()) {
                             FileUtils.symlink(entry.getLinkName(), file.getAbsolutePath());
                         }
