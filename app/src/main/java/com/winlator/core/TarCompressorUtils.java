@@ -166,6 +166,8 @@ public abstract class TarCompressorUtils {
                         if (!file.isDirectory()) file.mkdirs();
                     }
                     else {
+                        File parent = file.getParentFile();
+                        if (parent != null && !parent.exists()) parent.mkdirs();
                         if (entry.isSymbolicLink()) {
                             FileUtils.symlink(entry.getLinkName(), file.getAbsolutePath());
                         }

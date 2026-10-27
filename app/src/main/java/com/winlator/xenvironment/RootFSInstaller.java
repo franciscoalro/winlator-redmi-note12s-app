@@ -49,6 +49,7 @@ public abstract class RootFSInstaller {
         AppUtils.keepScreenOn(activity);
         RootFS rootFS = RootFS.find(activity);
         final File rootDir = rootFS.getRootDir();
+        final boolean cleanInstall = !rootFS.isValid();
 
         SettingsFragment.resetPreferenceVersions(activity);
 
@@ -56,7 +57,8 @@ public abstract class RootFSInstaller {
         dialog.show(R.string.installing_system_files);
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
-                clearRootDir(rootDir);
+                if (cleanInstall) clearIncompleteRootDir(rootDir);
+                else clearRootDir(rootDir);
                 final long contentLength = TarCompressorUtils.getContentLength(TarCompressorUtils.Type.ZSTD, activity, FILENAME, rootDir);
                 AtomicLong totalSizeRef = new AtomicLong();
 
@@ -88,6 +90,17 @@ public abstract class RootFSInstaller {
     public static void installIfNeeded(final MainActivity activity) {
         RootFS rootFS = RootFS.find(activity);
         if (!rootFS.isValid() || rootFS.getVersion() < LATEST_VERSION) install(activity);
+    }
+
+    private static void clearIncompleteRootDir(File rootDir) {
+        if (!rootDir.exists()) {
+            rootDir.mkdirs();
+            return;
+        }
+        File[] files = rootDir.listFiles();
+        if (files != null) {
+            for (File file : files) FileUtils.delete(file);
+        }
     }
 
     private static void clearOptDir(File optDir) {
