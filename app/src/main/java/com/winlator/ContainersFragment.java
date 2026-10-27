@@ -30,8 +30,10 @@ import com.winlator.container.Container;
 import com.winlator.container.ContainerManager;
 import com.winlator.contentdialog.ContentDialog;
 import com.winlator.contentdialog.StorageInfoDialog;
+import com.winlator.core.AppUtils;
 import com.winlator.core.PreloaderDialog;
 import com.winlator.xenvironment.RootFS;
+import com.winlator.xenvironment.RootFSInstaller;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -86,7 +88,13 @@ public class ContainersFragment extends Fragment {
     @Override
     public boolean onOptionsItemSelected(MenuItem menuItem) {
         if (menuItem.getItemId() == R.id.menu_item_add) {
-            if (!RootFS.find(getContext()).isValid()) return false;
+            if (!RootFS.find(getContext()).isValid()) {
+                AppUtils.showToast(getContext(), R.string.installing_system_files);
+                if (getActivity() instanceof MainActivity) {
+                    RootFSInstaller.installIfNeeded((MainActivity)getActivity());
+                }
+                return true;
+            }
             FragmentManager fragmentManager = getParentFragmentManager();
             fragmentManager.beginTransaction()
                 .addToBackStack(null)
