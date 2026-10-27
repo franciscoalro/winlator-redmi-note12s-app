@@ -150,17 +150,17 @@ public abstract class TarCompressorUtils {
         if (source == null || destination == null) return false;
         try {
             if (!destination.exists() && !destination.mkdirs()) return false;
-            final String destinationPath = destination.getCanonicalPath() + File.separator;
             try (InputStream inStream = getCompressorInputStream(type, source);
                  ArchiveInputStream tar = new TarArchiveInputStream(inStream)) {
                 TarArchiveEntry entry;
                 while ((entry = (TarArchiveEntry)tar.getNextEntry()) != null) {
                     if (!tar.canReadEntryData(entry)) continue;
-                    File file = new File(destination, entry.getName());
-                    if (!file.getCanonicalPath().startsWith(destinationPath)) {
-                        Log.w("TarCompressorUtils", "Skipping unsafe archive entry: " + entry.getName());
+                    String entryName = entry.getName().replace('\\', '/');
+                    if (entryName.startsWith("/") || entryName.equals("..") || entryName.startsWith("../") || entryName.contains("/../")) {
+                        Log.w("TarCompressorUtils", "Skipping unsafe archive entry: " + entryName);
                         continue;
                     }
+                    File file = new File(destination, entryName);
 
                     if (onExtractFileListener != null) {
                         file = onExtractFileListener.onExtractFile(file, entry.getSize());
