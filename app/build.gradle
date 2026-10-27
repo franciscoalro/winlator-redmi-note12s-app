@@ -14,7 +14,7 @@ android {
     defaultConfig {
         applicationId 'com.winlator'
         minSdkVersion 26
-        targetSdkVersion 33
+        targetSdkVersion 28
         versionCode 34
         versionName "11.2-rn12s"
         // Redmi Note 12s: 8GB RAM, Mali-G57 MC2, Helio G96
