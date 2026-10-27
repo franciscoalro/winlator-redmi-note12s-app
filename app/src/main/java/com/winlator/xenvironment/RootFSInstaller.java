@@ -1,6 +1,7 @@
 package com.winlator.xenvironment;
 
 import android.content.Context;
+import android.util.Log;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -54,26 +55,33 @@ public abstract class RootFSInstaller {
         final DownloadProgressDialog dialog = new DownloadProgressDialog(activity);
         dialog.show(R.string.installing_system_files);
         Executors.newSingleThreadExecutor().execute(() -> {
-            clearRootDir(rootDir);
-            final long contentLength = TarCompressorUtils.getContentLength(TarCompressorUtils.Type.ZSTD, activity, FILENAME, rootDir);
-            AtomicLong totalSizeRef = new AtomicLong();
+            try {
+                clearRootDir(rootDir);
+                final long contentLength = TarCompressorUtils.getContentLength(TarCompressorUtils.Type.ZSTD, activity, FILENAME, rootDir);
+                AtomicLong totalSizeRef = new AtomicLong();
 
-            boolean success = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, activity, FILENAME, rootDir, (file, size) -> {
-                if (size > 0) {
-                    long totalSize = totalSizeRef.addAndGet(size);
-                    final int progress = (int)(((float)totalSize / contentLength) * 100);
-                    activity.runOnUiThread(() -> dialog.setProgress(progress));
+                boolean success = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, activity, FILENAME, rootDir, (file, size) -> {
+                    if (size > 0 && contentLength > 0) {
+                        long totalSize = totalSizeRef.addAndGet(size);
+                        final int progress = Math.min(100, (int)(((float)totalSize / contentLength) * 100));
+                        activity.runOnUiThread(() -> dialog.setProgress(progress));
+                    }
+                    return file;
+                });
+
+                if (success) {
+                    rootFS.createRFSVersionFile(LATEST_VERSION);
+                    resetContainerRFSVersions(activity);
                 }
-                return file;
-            });
-
-            if (success) {
-                rootFS.createRFSVersionFile(LATEST_VERSION);
-                resetContainerRFSVersions(activity);
+                else AppUtils.showToast(activity, R.string.unable_to_install_system_files);
             }
-            else AppUtils.showToast(activity, R.string.unable_to_install_system_files);
-
-            dialog.closeOnUiThread();
+            catch (Throwable error) {
+                Log.e("RootFSInstaller", "Root filesystem installation failed", error);
+                AppUtils.showToast(activity, R.string.unable_to_install_system_files);
+            }
+            finally {
+                dialog.closeOnUiThread();
+            }
         });
     }
 

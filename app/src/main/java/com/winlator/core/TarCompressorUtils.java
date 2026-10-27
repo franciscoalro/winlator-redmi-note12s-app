@@ -2,6 +2,7 @@ package com.winlator.core;
 
 import android.content.Context;
 import android.net.Uri;
+import android.util.Log;
 
 import org.apache.commons.compress.archivers.ArchiveInputStream;
 import org.apache.commons.compress.archivers.ArchiveOutputStream;
@@ -146,38 +147,49 @@ public abstract class TarCompressorUtils {
     }
 
     private static boolean extract(Type type, InputStream source, File destination, OnExtractFileListener onExtractFileListener) {
-        if (source == null) return false;
-        try (InputStream inStream = getCompressorInputStream(type, source);
-             ArchiveInputStream tar = new TarArchiveInputStream(inStream)) {
-            TarArchiveEntry entry;
-            while ((entry = (TarArchiveEntry)tar.getNextEntry()) != null) {
-                if (!tar.canReadEntryData(entry)) continue;
-                File file = new File(destination, entry.getName());
+        if (source == null || destination == null) return false;
+        try {
+            if (!destination.exists() && !destination.mkdirs()) return false;
+            final String destinationPath = destination.getCanonicalPath() + File.separator;
+            try (InputStream inStream = getCompressorInputStream(type, source);
+                 ArchiveInputStream tar = new TarArchiveInputStream(inStream)) {
+                TarArchiveEntry entry;
+                while ((entry = (TarArchiveEntry)tar.getNextEntry()) != null) {
+                    if (!tar.canReadEntryData(entry)) continue;
+                    File file = new File(destination, entry.getName());
+                    if (!file.getCanonicalPath().startsWith(destinationPath)) {
+                        Log.w("TarCompressorUtils", "Skipping unsafe archive entry: " + entry.getName());
+                        continue;
+                    }
 
-                if (onExtractFileListener != null) {
-                    file = onExtractFileListener.onExtractFile(file, entry.getSize());
-                    if (file == null) continue;
-                }
+                    if (onExtractFileListener != null) {
+                        file = onExtractFileListener.onExtractFile(file, entry.getSize());
+                        if (file == null) continue;
+                    }
 
-                if (entry.isDirectory()) {
-                    if (!file.isDirectory()) file.mkdirs();
-                }
-                else {
-                    if (entry.isSymbolicLink()) {
-                        FileUtils.symlink(entry.getLinkName(), file.getAbsolutePath());
+                    if (entry.isDirectory()) {
+                        if (!file.isDirectory() && !file.mkdirs() && !file.isDirectory()) return false;
                     }
                     else {
-                        try (BufferedOutputStream outStream = new BufferedOutputStream(new FileOutputStream(file), StreamUtils.BUFFER_SIZE)) {
-                            if (!StreamUtils.copy(tar, outStream)) return false;
+                        File parent = file.getParentFile();
+                        if (parent != null && !parent.isDirectory() && !parent.mkdirs() && !parent.isDirectory()) return false;
+                        if (entry.isSymbolicLink()) {
+                            FileUtils.symlink(entry.getLinkName(), file.getAbsolutePath());
+                        }
+                        else {
+                            try (BufferedOutputStream outStream = new BufferedOutputStream(new FileOutputStream(file), StreamUtils.BUFFER_SIZE)) {
+                                if (!StreamUtils.copy(tar, outStream)) return false;
+                            }
                         }
                     }
-                }
 
-                FileUtils.chmod(file, 0771);
+                    FileUtils.chmod(file, 0771);
+                }
+                return true;
             }
-            return true;
         }
-        catch (IOException e) {
+        catch (Exception e) {
+            Log.e("TarCompressorUtils", "Failed to extract archive into " + destination, e);
             return false;
         }
     }
