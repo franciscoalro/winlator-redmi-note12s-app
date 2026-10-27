@@ -63,11 +63,6 @@ android {
         cmake {
             version '3.22.1'
             path 'src/main/cpp/CMakeLists.txt'
-            arguments = [
-                "-DCMAKE_BUILD_TYPE=Release",
-                "-DANDROID_ARM_NEON=ON",
-                "-DANDROID_STL=c++_shared"
-            ]
         }
     }
 
